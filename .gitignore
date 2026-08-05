@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# customer order data (PII, never commit)
+/data/orders.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
