@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Anton } from "next/font/google";
+import { Geist, Anton, Cormorant_Garamond } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Preloader } from "@/components/ui/Preloader";
+import { CustomCursor } from "@/components/ui/CustomCursor";
+import { PageTransition } from "@/components/ui/PageTransition";
+import { AuthProvider } from "@/lib/AuthContext";
 import { CartProvider } from "@/lib/CartContext";
+import { WishlistProvider } from "@/lib/WishlistContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import "./globals.css";
 
@@ -16,6 +20,13 @@ const anton = Anton({
   variable: "--font-anton",
   subsets: ["latin"],
   weight: "400",
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -34,16 +45,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${anton.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${anton.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper font-sans text-ink">
         <Preloader />
-        <CartProvider>
-          <Header />
-          <main className="flex flex-1 flex-col">{children}</main>
-          <Footer />
-          <CartDrawer />
-        </CartProvider>
+        <CustomCursor />
+        <AuthProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <Header />
+              <main className="flex flex-1 flex-col">
+                <PageTransition>{children}</PageTransition>
+              </main>
+              <Footer />
+              <CartDrawer />
+            </WishlistProvider>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

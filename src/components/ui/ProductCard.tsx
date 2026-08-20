@@ -2,12 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Product, Tone } from "@/types";
 import { PriceTag } from "@/components/ui/PriceTag";
 import { BrushButton } from "@/components/ui/BrushButton";
 import { CategoryPill } from "@/components/ui/CategoryPill";
+import { DiscountBadge } from "@/components/ui/DiscountBadge";
+import { SizeSelector } from "@/components/ui/SizeSelector";
+import { WishlistButton } from "@/components/product/WishlistButton";
 import { useCart } from "@/lib/CartContext";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 const TONE_CLASSES: Record<Tone, string> = {
   ink: "bg-ink",
@@ -17,81 +23,139 @@ const TONE_CLASSES: Record<Tone, string> = {
   dune: "bg-dune",
 };
 
-export function ProductCard({
-  product,
-  index,
-}: {
-  product: Product;
-  index: number;
-}) {
+export function ProductCard({ product }: { product: Product }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [activeAngle, setActiveAngle] = useState(0);
-  const angleCount = product.images.length;
+  const [showFlat, setShowFlat] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [showShopNow, setShowShopNow] = useState(false);
+  const [imageRevealed, setImageRevealed] = useState(false);
+  const [pickingSize, setPickingSize] = useState(false);
+  const [added, setAdded] = useState(false);
   const { addToCart } = useCart();
 
-  function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
-    if (angleCount <= 1 || !frameRef.current) return;
-    const { left, width } = frameRef.current.getBoundingClientRect();
-    const ratio = (event.clientX - left) / width;
-    const next = Math.min(
-      angleCount - 1,
-      Math.max(0, Math.floor(ratio * angleCount)),
-    );
-    setActiveAngle(next);
+  async function handleQuickAddSize(size: string) {
+    setPickingSize(false);
+    try {
+      await addToCart(product.id, size);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
+    } catch {
+      // Errors (e.g. out of stock) are rare here since size is only offered
+      // via SizeSelector, which is already scoped to product.sizes; a fuller
+      // message is available on the product detail page's AddToCartButton.
+    }
   }
 
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          // Force a paint of the hidden state before flipping to visible,
+          // otherwise the transition has nothing to animate from when the
+          // element is already in view on mount.
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => setImageRevealed(true)),
+          );
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.2 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <article className="flex flex-col gap-4">
+    <article className="group flex flex-col gap-4">
       <div
         ref={frameRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setActiveAngle(0)}
-        className={`relative aspect-[4/5] w-full overflow-hidden ${TONE_CLASSES[product.tone]}`}
+        onMouseEnter={() => {
+          setShowFlat(true);
+          setHovering(true);
+        }}
+        onMouseLeave={() => {
+          setShowFlat(false);
+          setHovering(false);
+          setShowShopNow(false);
+        }}
+        onClick={() => setShowShopNow((v) => !v)}
+        data-cursor-zone
+        className={`relative aspect-[4/5] w-full cursor-pointer overflow-hidden ${TONE_CLASSES[product.tone]}`}
       >
-        {product.images.map((src, angleIndex) => (
+        <div
+          className="absolute inset-0 transition-[clip-path] duration-[900ms] ease-out"
+          style={{
+            clipPath: imageRevealed ? "inset(0 0 0 0)" : "inset(0 100% 0 0)",
+          }}
+        >
           <Image
-            key={src}
-            src={src}
-            alt={`${product.name} — angle ${angleIndex + 1}`}
+            src={product.primaryImage}
+            alt={product.name}
             fill
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-            className={`object-cover transition-opacity duration-200 ease-out ${
-              angleIndex === activeAngle ? "opacity-100" : "opacity-0"
-            }`}
+            className={`object-cover transition-[opacity,transform] duration-[700ms] ease-out ${
+              showFlat ? "opacity-0" : "opacity-100"
+            } ${imageRevealed ? (hovering ? "scale-[1.08]" : "scale-100") : "scale-110"}`}
           />
-        ))}
+          <Image
+            src={product.flatImage}
+            alt={`${product.name} — product only`}
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className={`object-cover transition-[opacity,transform] duration-[700ms] ease-out ${
+              showFlat ? "opacity-100" : "opacity-0"
+            } ${imageRevealed ? (hovering ? "scale-[1.08]" : "scale-100") : "scale-110"}`}
+          />
+        </div>
 
-        <span className="pointer-events-none absolute left-4 top-4 font-mono text-xs uppercase tracking-[0.1em] text-paper [text-shadow:0_1px_6px_rgb(0_0_0_/_0.5)]">
-          N°{String(index + 1).padStart(2, "0")}
-        </span>
         <div className="pointer-events-none absolute bottom-4 left-4">
           <CategoryPill className="border-paper bg-paper/90 text-ink">
-            {product.category}
+            {product.category.name}
           </CategoryPill>
         </div>
 
+        <WishlistButton
+          productId={product.id}
+          className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-paper/90 text-ink"
+        />
+
         {product.compareAtPrice !== undefined && (
-          <span className="pointer-events-none absolute right-4 top-4 bg-clay px-2 py-1 font-mono text-xs uppercase tracking-[0.1em] text-paper">
-            -{Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
-          </span>
+          <DiscountBadge
+            percentOff={Math.round(
+              ((product.compareAtPrice - product.price) /
+                product.compareAtPrice) *
+                100,
+            )}
+          />
         )}
 
-        {angleCount > 1 && (
-          <div className="pointer-events-none absolute bottom-4 right-4 flex gap-1.5">
-            {product.images.map((_, dotIndex) => (
-              <span
-                key={dotIndex}
-                className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                  dotIndex === activeAngle ? "bg-paper" : "bg-paper/40"
-                }`}
-              />
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {showShopNow && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: EASE }}
+              className="absolute inset-0 flex items-center justify-center bg-ink/50"
+            >
+              <Link
+                href={`/products/${product.slug}`}
+                onClick={(event) => event.stopPropagation()}
+                className="transition-transform hover:scale-105"
+              >
+                <BrushButton>[ Shop Now ]</BrushButton>
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <Link href={`/products/${product.id}`}>
+          <Link href={`/products/${product.slug}`}>
             <h3 className="font-display text-lg uppercase text-ink transition-opacity hover:opacity-70">
               {product.name}
             </h3>
@@ -104,13 +168,26 @@ export function ProductCard({
           <PriceTag price={product.price} compareAtPrice={product.compareAtPrice} />
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => addToCart(product.id)}
-        className="mt-1 inline-block w-fit transition-opacity hover:opacity-80"
-      >
-        <BrushButton>[ Add to Cart ]</BrushButton>
-      </button>
+      {pickingSize ? (
+        <div className="mt-1 flex flex-col gap-2">
+          <span className="font-mono text-xs uppercase tracking-[0.1em] text-ink-soft">
+            Select size
+          </span>
+          <SizeSelector
+            sizes={product.sizes}
+            selected={null}
+            onSelect={handleQuickAddSize}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPickingSize(true)}
+          className="mt-1 w-full bg-ink px-6 py-3 font-mono text-xs uppercase tracking-[0.1em] text-paper transition-all duration-300 hover:opacity-80 hover:tracking-[0.15em]"
+        >
+          {added ? "Added" : "+ Quick Add"}
+        </button>
+      )}
     </article>
   );
 }

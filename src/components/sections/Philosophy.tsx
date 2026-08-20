@@ -1,4 +1,5 @@
 import { Container } from "@/components/ui/Container";
+import { Reveal } from "@/components/ui/Reveal";
 
 const PRINCIPLES = [
   {
@@ -17,25 +18,30 @@ const PRINCIPLES = [
 
 export function Philosophy() {
   return (
-    <section id="philosophy" className="border-b border-line bg-paper-dim py-24">
+    <section id="philosophy" className="border-b border-line bg-paper-dim py-24 sm:py-32">
       <Container>
-        <h2 className="max-w-lg font-display text-4xl uppercase text-ink sm:text-5xl">
-          Modest dressing, held to a high standard.
-        </h2>
+        <Reveal>
+          <span className="font-serif text-lg italic text-dune">Our philosophy</span>
+          <h2 className="mt-2 max-w-lg font-display text-4xl uppercase text-ink sm:text-5xl lg:text-6xl">
+            Modest dressing, held to a high standard.
+          </h2>
+        </Reveal>
 
         <div className="mt-16 grid grid-cols-1 gap-12 sm:grid-cols-3">
           {PRINCIPLES.map((principle, index) => (
-            <div key={principle.title} className="border-t border-ink pt-4">
-              <span className="font-mono text-xs text-clay">
-                N°0{index + 1}
-              </span>
-              <h3 className="mt-3 font-display text-xl uppercase text-ink">
-                {principle.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-                {principle.body}
-              </p>
-            </div>
+            <Reveal key={principle.title} delay={index * 100}>
+              <div className="border-t border-ink pt-4">
+                <span className="font-mono text-xs text-clay">
+                  N°0{index + 1}
+                </span>
+                <h3 className="mt-3 font-display text-xl uppercase text-ink">
+                  {principle.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                  {principle.body}
+                </p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </Container>

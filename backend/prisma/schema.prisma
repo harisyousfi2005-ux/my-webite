@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String         @id @default(uuid())
+  email     String         @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  role      Role           @default(USER)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  addresses        Address[]
+  cartItems        CartItem[]
+  orders           Order[]
+  wishlist         WishlistItem[]
+  verifiedPayments Payment[]      @relation("PaymentVerifier")
+
+  @@map("users")
+}
+
+model Address {
+  id         String   @id @default(uuid())
+  userId     String
+  label      String?
+  line1      String
+  line2      String?
+  city       String
+  postalCode String?
+  country    String   @default("Pakistan")
+  phone      String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id             String         @id @default(uuid())
+  name           String
+  slug           String         @unique
+  description    String
+  price          Decimal        @db.Decimal(10, 2)
+  compareAtPrice Decimal?       @db.Decimal(10, 2)
+  sizes          String[]
+  colors         String[]       @default([])
+  stock          Int            @default(0)
+  sku            String?        @unique
+  isActive       Boolean        @default(true)
+  isFeatured     Boolean        @default(false)
+  categoryId     String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  images         ProductImage[]
+  category       Category       @relation(fields: [categoryId], references: [id])
+  wishlistItems  WishlistItem[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  publicId  String
+  isPrimary Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  size      String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId, size])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+model DiscountCode {
+  id         String    @id @default(uuid())
+  code       String    @unique
+  percentOff Int
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  orders     Order[]
+
+  @@map("discount_codes")
+}
+
+model Order {
+  id             String        @id @default(uuid())
+  orderNumber    String        @unique
+  userId         String
+  addressId      String?
+  status         OrderStatus   @default(PENDING)
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus @default(PENDING)
+  subtotal       Decimal       @db.Decimal(10, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(10, 2)
+  discountCodeId String?
+  total          Decimal       @db.Decimal(10, 2)
+  contactEmail   String
+  contactPhone   String
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  items          OrderItem[]
+  address        Address?      @relation(fields: [addressId], references: [id])
+  discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  payment        Payment?
+
+  @@index([userId])
+  @@map("orders")
+}
+
+// Singleton row (id is always the literal "singleton") — global DEMO/LIVE
+// toggle for all gateway payment methods.
+model PaymentSettings {
+  id               String      @id @default("singleton")
+  mode             PaymentMode @default(DEMO)
+  updatedAt        DateTime    @updatedAt
+  updatedByAdminId String?
+
+  @@map("payment_settings")
+}
+
+model PaymentProviderConfig {
+  id     String        @id @default(uuid())
+  // CARD, JAZZCASH, EASYPAISA, or BANK_TRANSFER — CASH_ON_DELIVERY and
+  // CARD_ON_DELIVERY have no gateway to configure, so they never get a row.
+  provider PaymentMethod @unique
+  enabled  Boolean       @default(false)
+  // Non-secret fields shown in checkout/admin (e.g. bank account number,
+  // merchant ID, return URL) — safe to return from any authenticated API.
+  publicConfig Json?
+  // AES-256-GCM encrypted JSON blob (e.g. JazzCash password + integrity
+  // salt, Stripe secret key + webhook secret). Never decrypted for API
+  // responses — only read server-side when actually calling the provider.
+  secretConfig String?
+
+  updatedAt        DateTime @updatedAt
+  updatedByAdminId String?
+
+  @@map("payment_provider_configs")
+}
+
+model Payment {
+  id                  String        @id @default(uuid())
+  orderId             String        @unique
+  method              PaymentMethod
+  status              PaymentStatus @default(PENDING)
+  provider            String?
+  providerTxnRef      String?
+  providerPaymentId   String?
+  amount              Decimal       @db.Decimal(10, 2)
+  currency            String        @default("PKR")
+  rawResponse         Json?
+  bankReferenceNumber String?
+  bankTransferAmount  Decimal?      @db.Decimal(10, 2)
+  proofImageUrl       String?
+  proofImagePublicId  String?
+  verifiedByAdminId   String?
+  verifiedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  order           Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  verifiedByAdmin User? @relation("PaymentVerifier", fields: [verifiedByAdminId], references: [id])
+
+  @@map("payments")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  productId   String
+  productName String
+  price       Decimal  @db.Decimal(10, 2)
+  size        String
+  quantity    Int
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  subject   String?
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("contact_messages")
+}
+
+enum Role {
+  SUPER_ADMIN
+  USER
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CARD_ON_DELIVERY
+  CARD
+  JAZZCASH
+  EASYPAISA
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMode {
+  DEMO
+  LIVE
+}

@@ -1,23 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  --color-paper: #fafafa;
-  --color-paper-dim: #f0f0ef;
-  --color-ink: #0a0a0a;
-  --color-ink-soft: #4a4a48;
-  --color-navy: #1f2438;
-  --color-navy-soft: #3a4166;
-  --color-sand: #e4dccb;
-  --color-clay: #d1272b;
-  --color-clay-soft: #e8888a;
-  --color-dune: #a3906c;
-  --color-dune-soft: #cabb9c;
-  --color-line: #dcdcda;
+  /* Warm cream / paper family — replaces the old neutral off-white */
+  --color-paper: #f7f4ec;
+  --color-paper-dim: #ede6d6;
+  --color-canvas: #f7f4ec;
+
+  /* Near-black ink family, warmed slightly rather than true neutral black */
+  --color-charcoal: #17140f;
+  --color-ink: #0c0a08;
+  --color-ink-soft: #57534a;
+
+  /* "navy" kept as a token name (used across product/category "tone"
+     variants) but repointed to a deep warm espresso-black instead of blue,
+     so every tone stays inside the black/cream/beige/white family. */
+  --color-navy: #211c16;
+  --color-navy-soft: #3a3327;
+
+  --color-sand: #e7dcc4;
+  --color-dune: #ab9268;
+  --color-dune-soft: #cdbb96;
+
+  /* "clay" kept as the accent token name (prices, sale badges, errors) but
+     repointed from bright red to a muted oxblood/bronze so it reads as a
+     premium leather-like accent rather than a warning color. */
+  --color-clay: #6b4530;
+  --color-clay-soft: #a9805f;
+
+  --color-line: #e1d9c4;
 }
 
 @theme inline {
   --color-paper: var(--color-paper);
   --color-paper-dim: var(--color-paper-dim);
+  --color-canvas: var(--color-canvas);
+  --color-charcoal: var(--color-charcoal);
   --color-ink: var(--color-ink);
   --color-ink-soft: var(--color-ink-soft);
   --color-navy: var(--color-navy);
@@ -31,6 +48,7 @@
 
   --font-sans: var(--font-geist-sans);
   --font-display: var(--font-anton);
+  --font-serif: var(--font-cormorant);
 
   --animate-fade-up: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 
@@ -46,12 +64,56 @@
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--color-paper);
+  background: var(--color-canvas);
   color: var(--color-ink);
 }
 
 ::selection {
   background: var(--color-clay);
   color: var(--color-paper);
+}
+
+/* Subtle, premium scrollbar (WebKit) — thin ink thumb on the warm canvas. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-paper);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-soft);
+  border: 2px solid var(--color-paper);
+  border-radius: 9999px;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-soft) var(--color-paper);
+}
+
+/* Desktop-only custom cursor hides the native pointer on elements that opt
+   in via [data-cursor-hide]; harmless no-op everywhere else. */
+@media (pointer: fine) {
+  [data-cursor-zone] {
+    cursor: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

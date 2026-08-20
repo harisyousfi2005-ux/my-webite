@@ -23,6 +23,7 @@ export function ProductGallery({
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [activeAngle, setActiveAngle] = useState(0);
+  const [hovering, setHovering] = useState(false);
   const angleCount = images.length;
 
   function handleMouseMove(event: MouseEvent<HTMLDivElement>) {
@@ -40,7 +41,12 @@ export function ProductGallery({
     <div
       ref={frameRef}
       onMouseMove={handleMouseMove}
-      onMouseLeave={() => setActiveAngle(0)}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => {
+        setActiveAngle(0);
+        setHovering(false);
+      }}
+      data-cursor-zone
       className={`relative aspect-[4/5] w-full overflow-hidden ${TONE_CLASSES[tone]}`}
     >
       {images.map((src, angleIndex) => (
@@ -51,9 +57,9 @@ export function ProductGallery({
           fill
           priority={angleIndex === 0}
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className={`object-cover transition-opacity duration-200 ease-out ${
+          className={`object-cover transition-[opacity,transform] duration-[600ms] ease-out ${
             angleIndex === activeAngle ? "opacity-100" : "opacity-0"
-          }`}
+          } ${hovering ? "scale-[1.06]" : "scale-100"}`}
         />
       ))}
 

@@ -7,98 +7,119 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PRODUCTS } from "@/lib/data";
+import { usePathname, useRouter } from "next/navigation";
+import { apiFetch, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
+import type { Cart, CartLine } from "@/types";
 
-export interface CartItem {
-  productId: string;
-  quantity: number;
-}
+type CartStatus = "loading" | "ready" | "error";
 
 interface CartContextValue {
-  items: CartItem[];
-  addToCart: (productId: string, quantity?: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  clearCart: () => void;
+  items: CartLine[];
+  subtotal: number;
   totalCount: number;
-  totalPrice: number;
+  status: CartStatus;
+  error: string | null;
+  addToCart: (productId: string, size: string, quantity?: number) => Promise<void>;
+  removeFromCart: (itemId: string) => Promise<void>;
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
 }
 
+const EMPTY_CART: Cart = { items: [], subtotal: 0, totalItems: 0 };
+
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "meridian-cart";
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const { status: authStatus } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [cart, setCart] = useState<Cart>(EMPTY_CART);
+  const [status, setStatus] = useState<CartStatus>("loading");
+  const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setItems(JSON.parse(stored));
-    } catch {
-      // ignore malformed storage
+    if (authStatus === "loading") {
+      // Syncing local cart status to the external AuthContext's async
+      // status — legitimate effect use, not avoidable via render-time
+      // computation, since authStatus itself only settles asynchronously.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus("loading");
+      return;
     }
-    setHydrated(true);
-  }, []);
+    if (authStatus === "unauthenticated") {
+      setCart(EMPTY_CART);
+      setStatus("ready");
+      return;
+    }
+    apiFetch<Cart>("/cart")
+      .then((result) => {
+        setCart(result);
+        setStatus("ready");
+      })
+      .catch((err) => {
+        setError(err instanceof ApiError ? err.message : "Failed to load cart");
+        setStatus("error");
+      });
+  }, [authStatus]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items, hydrated]);
+  function requireAuthOrRedirect(): boolean {
+    if (authStatus === "authenticated") return true;
+    router.push(`/login?next=${encodeURIComponent(pathname)}`);
+    return false;
+  }
 
-  function addToCart(productId: string, quantity = 1) {
-    setItems((prev) => {
-      const existing = prev.find((i) => i.productId === productId);
-      if (existing) {
-        return prev.map((i) =>
-          i.productId === productId
-            ? { ...i, quantity: i.quantity + quantity }
-            : i,
-        );
-      }
-      return [...prev, { productId, quantity }];
+  async function addToCart(productId: string, size: string, quantity = 1) {
+    if (!requireAuthOrRedirect()) return;
+    const result = await apiFetch<Cart>("/cart/items", {
+      method: "POST",
+      body: { productId, size, quantity },
     });
+    setCart(result);
     setIsOpen(true);
   }
 
-  function removeFromCart(productId: string) {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
-  }
-
-  function updateQuantity(productId: string, quantity: number) {
+  async function updateQuantity(itemId: string, quantity: number) {
     if (quantity < 1) {
-      removeFromCart(productId);
+      await removeFromCart(itemId);
       return;
     }
-    setItems((prev) =>
-      prev.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
-    );
+    const result = await apiFetch<Cart>(`/cart/items/${itemId}`, {
+      method: "PATCH",
+      body: { quantity },
+    });
+    setCart(result);
   }
 
-  function clearCart() {
-    setItems([]);
+  async function removeFromCart(itemId: string) {
+    const result = await apiFetch<Cart>(`/cart/items/${itemId}`, {
+      method: "DELETE",
+    });
+    setCart(result);
   }
 
-  const totalCount = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce((sum, i) => {
-    const product = PRODUCTS.find((p) => p.id === i.productId);
-    return sum + (product ? product.price * i.quantity : 0);
-  }, 0);
+  async function clearCart() {
+    const result = await apiFetch<Cart>("/cart", { method: "DELETE" });
+    setCart(result);
+  }
 
   return (
     <CartContext.Provider
       value={{
-        items,
+        items: cart.items,
+        subtotal: cart.subtotal,
+        totalCount: cart.totalItems,
+        status,
+        error,
         addToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
-        totalCount,
-        totalPrice,
         isOpen,
         openCart: () => setIsOpen(true),
         closeCart: () => setIsOpen(false),
