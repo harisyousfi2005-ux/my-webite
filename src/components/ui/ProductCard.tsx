@@ -156,11 +156,11 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <Link href={`/products/${product.slug}`}>
-            <h3 className="font-display text-lg uppercase text-ink transition-opacity hover:opacity-70">
+            <h3 className="line-clamp-2 font-display text-lg uppercase text-ink transition-opacity hover:opacity-70">
               {product.name}
             </h3>
           </Link>
-          <p className="mt-1 max-w-xs text-sm text-ink-soft">
+          <p className="mt-1 line-clamp-2 max-w-xs text-sm text-ink-soft">
             {product.description}
           </p>
         </div>

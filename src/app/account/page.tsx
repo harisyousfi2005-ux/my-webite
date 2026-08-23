@@ -67,7 +67,7 @@ export default async function AccountPage() {
                     </p>
                   </div>
                   <span className="font-mono text-sm text-clay">
-                    ${order.total}
+                    PKR {order.total}
                   </span>
                 </div>
               ))}

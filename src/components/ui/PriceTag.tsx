@@ -16,11 +16,11 @@ export function PriceTag({
 
   return (
     <span className="inline-flex items-baseline gap-2 font-mono">
-      <span className={`${priceClass} text-clay`}>${price}</span>
+      <span className={`${priceClass} text-clay`}>PKR {price}</span>
       {onSale && (
         <>
           <span className="text-xs text-ink-soft line-through">
-            ${compareAtPrice}
+            PKR {compareAtPrice}
           </span>
           <span className="text-xs uppercase tracking-[0.1em] text-clay">
             [ -{percentOff}% ]

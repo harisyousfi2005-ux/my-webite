@@ -8,6 +8,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { initiatePayment, simulateDemoPayment, submitBankTransferProof } from "@/lib/payments";
 import { serializeProduct } from "@/lib/adapters";
 import { BrushButton } from "@/components/ui/BrushButton";
+import { OrderConfirmation } from "@/components/checkout/OrderConfirmation";
 import type {
   Address,
   InitiatePaymentResult,
@@ -134,7 +135,7 @@ function BankTransferPanel({
         {bankDetails.iban && (
           <p className="font-mono text-xs text-ink-soft">IBAN: {bankDetails.iban}</p>
         )}
-        <p className="mt-2 font-mono text-sm text-clay">Amount: ${result.amount}</p>
+        <p className="mt-2 font-mono text-sm text-clay">Amount: PKR {result.amount}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -432,20 +433,7 @@ export function CheckoutForm({
   }
 
   if (status === "done" && order) {
-    return (
-      <section className="flex min-h-[60vh] flex-col items-center justify-center gap-4 py-24 text-center">
-        <p className="font-mono text-sm uppercase tracking-[0.1em] text-clay">
-          [ Order {order.orderNumber} received ]
-        </p>
-        <p className="max-w-sm text-sm text-ink-soft">
-          Thanks — we&apos;ll contact you shortly to confirm your order of $
-          {order.total}.
-        </p>
-        <Link href="/#collection" className="mt-2 transition-opacity hover:opacity-80">
-          <BrushButton>[ Back to collection ]</BrushButton>
-        </Link>
-      </section>
-    );
+    return <OrderConfirmation order={order} />;
   }
 
   const lines = items.map((item) => ({
@@ -686,7 +674,7 @@ export function CheckoutForm({
                   </span>
                 </div>
                 <span className="font-mono text-sm text-ink">
-                  ${product.price * item.quantity}
+                  PKR {product.price * item.quantity}
                 </span>
               </div>
             ))}
@@ -707,7 +695,7 @@ export function CheckoutForm({
               <span className="font-mono text-xs uppercase tracking-[0.1em] text-ink-soft">
                 Subtotal
               </span>
-              <span className="font-mono text-sm text-ink">${subtotal}</span>
+              <span className="font-mono text-sm text-ink">PKR {subtotal}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs uppercase tracking-[0.1em] text-ink-soft">

@@ -105,7 +105,7 @@ export function CartDrawer() {
                             Size {item.size}
                           </span>
                           <span className="font-mono text-xs text-clay">
-                            ${item.product.price}
+                            PKR {item.product.price}
                           </span>
                           <div className="mt-auto flex items-center gap-3">
                             <button
@@ -146,7 +146,7 @@ export function CartDrawer() {
                     <span className="font-mono text-xs uppercase tracking-[0.1em] text-ink-soft">
                       Subtotal
                     </span>
-                    <span className="font-mono text-lg text-clay">${subtotal}</span>
+                    <span className="font-mono text-lg text-clay">PKR {subtotal}</span>
                   </div>
 
                   <Link

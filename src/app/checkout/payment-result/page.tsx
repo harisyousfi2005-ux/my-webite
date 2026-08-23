@@ -2,16 +2,12 @@ import Link from "next/link";
 import { requireServerUser, authedBackendFetch } from "@/lib/server/session";
 import { Container } from "@/components/ui/Container";
 import { BrushButton } from "@/components/ui/BrushButton";
+import { OrderConfirmation } from "@/components/checkout/OrderConfirmation";
 import type { Order } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 const STATUS_COPY: Record<string, { heading: string; tone: string; message: string }> = {
-  PAID: {
-    heading: "Payment received",
-    tone: "text-clay",
-    message: "Your payment was verified and your order is confirmed.",
-  },
   FAILED: {
     heading: "Payment failed",
     tone: "text-clay",
@@ -75,6 +71,10 @@ export default async function PaymentResultPage({
   // The status shown here always comes from our own database (already
   // updated by the backend's verified callback handler), never from the
   // URL — the orderId is just a pointer to look it up.
+  if (order.paymentStatus === "PAID") {
+    return <OrderConfirmation order={order} />;
+  }
+
   const copy = STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.PENDING;
 
   return (
